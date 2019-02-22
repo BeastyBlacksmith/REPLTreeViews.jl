@@ -108,15 +108,21 @@ const INDENTSIZE = 3
 
 indent(level) = " "^INDENTSIZE
 
-function printTreeChild(buf::IOBuffer, child::Tree, cursor, term_width::Int; level::Int = 0)
+function printTreeChild(buf::IOBuffer, child::Tree, cursor, term_width::Int; level::Int = 0, isedit = true)
     cur = cursor == -1
-    symbol = length(children(child)) > 0 ? child.expanded ? "▼" : "▶" : " "
+    symbol = if length(children(child)) > 0
+                child.expanded ? "▼" : "▶"
+             elseif isedit
+                "x"
+             else
+                "x"
+             end
 
     cur ? print(buf, "[$symbol] ") : print(buf, " $symbol  ")
     if child.expanded
         # print Tree with additional nesting, but without an active cursor
         # init=true assures that the Tree printing doesn't mess with anything
-        cursor = printMenu(buf, child, cursor; init=true, level = level)
+        cursor = printMenu(buf, child, cursor; init=true, level = level, isedit = isedit)
     else
         # only print header
         tb = IOBuffer()
@@ -143,7 +149,7 @@ function limitLineLength(strs, term_width)
     outstrs
 end
 
-function writeChild(buf::IOBuffer, t::Tree, idx::Int, cursor, term_width::Int; level::Int = 0)
+function writeChild(buf::IOBuffer, t::Tree, idx::Int, cursor, term_width::Int; level::Int = 0, isedit = true)
     tmpbuf = IOBuffer()
 
     child = children(t)[idx]
@@ -151,7 +157,7 @@ function writeChild(buf::IOBuffer, t::Tree, idx::Int, cursor, term_width::Int; l
     cursor -= 1
     cur = cursor == -1
     if child isa Tree
-        cursor = printTreeChild(tmpbuf, child, cursor, term_width, level = level)
+        cursor = printTreeChild(tmpbuf, child, cursor, term_width, level = level, isedit = isedit)
     else
         # if there's a specially designed show method we fall back to that
         if showmethod(typeof(child)) ≠ showmethod(Any)
@@ -163,7 +169,7 @@ function writeChild(buf::IOBuffer, t::Tree, idx::Int, cursor, term_width::Int; l
         else
             d = defaultrepr(child)
             if d isa Tree
-                cursor = printTreeChild(tmpbuf, d, cursor, term_width, level = level)
+                cursor = printTreeChild(tmpbuf, d, cursor, term_width, level = level, isedit = isedit)
             else
                 b = IOBuffer()
                 print(b, d)
@@ -182,7 +188,7 @@ function writeChild(buf::IOBuffer, t::Tree, idx::Int, cursor, term_width::Int; l
     cursor
 end
 
-function printMenu(out, m::Tree, cursor; init::Bool=false, level=0)
+function printMenu(out, m::Tree, cursor; init::Bool=false, level=0, isedit= true)
     buf = IOBuffer()
 
     if init
@@ -205,7 +211,7 @@ function printMenu(out, m::Tree, cursor; init::Bool=false, level=0)
     for i in 1:length(cs)
         print(buf, "\x1b[2K")
 
-        cursor = writeChild(buf, m, i, cursor, term_width, level=level+1)
+        cursor = writeChild(buf, m, i, cursor, term_width, level=level+1, isedit = isedit)
 
         # dont print an \r\n on the last line
         i != (m.pagesize+m.pageoffset) && print(buf, "\r\n")
@@ -221,15 +227,15 @@ end
 
 cancel(t::Tree) = nothing
 
-request(m::Tree) = request(terminal, m)
+request(m::Tree; kwargs...) = request(terminal, m; kwargs...)
 
-function request(term::REPL.Terminals.TTYTerminal, m::Tree)
+function request(term::REPL.Terminals.TTYTerminal, m::Tree; isedit = false)
     global mem
     mem = Dict{Any, Any}()
 
     cursor = 0
 
-    printMenu(term.out_stream, m, cursor, init=true)
+    printMenu(term.out_stream, m, cursor, init=true, isedit = isedit)
 
     raw_mode_enabled = enableRawMode(term)
     raw_mode_enabled && print(term.out_stream, "\x1b[?25l") # hide the cursor
@@ -247,7 +253,10 @@ function request(term::REPL.Terminals.TTYTerminal, m::Tree)
                 cursor += 1
             elseif c == 13 # <enter>
                 # will break if pick returns true
-                currentItem isa Tree && toggle(currentItem)
+                if currentItem isa Tree
+                    toggle(currentItem)
+                elseif isedit
+                end
             elseif c == UInt32('q')
                 cancel(m)
                 break
@@ -259,7 +268,7 @@ function request(term::REPL.Terminals.TTYTerminal, m::Tree)
                 keypress(m, c) && break
             end
 
-            printMenu(term.out_stream, m, cursor)
+            printMenu(term.out_stream, m, cursor, isedit = isedit)
         end
     finally
         # always disable raw mode even even if there is an

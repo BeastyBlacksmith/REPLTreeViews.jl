@@ -24,5 +24,6 @@ end
 
 include("renderer.jl")
 include("default.jl")
+include("edit.jl")
 
 end # module
