@@ -108,14 +108,14 @@ const INDENTSIZE = 3
 
 indent(level) = " "^INDENTSIZE
 
-function printTreeChild(buf::IOBuffer, child::Tree, cursor, term_width::Int; level::Int = 0, isedit = true)
+function printTreeChild(buf::IOBuffer, child::Tree, cursor, term_width::Int; level::Int = 0, isedit = false)
     cur = cursor == -1
     symbol = if length(children(child)) > 0
                 child.expanded ? "▼" : "▶"
              elseif isedit
                 "x"
              else
-                "x"
+                " "
              end
 
     cur ? print(buf, "[$symbol] ") : print(buf, " $symbol  ")
@@ -149,7 +149,7 @@ function limitLineLength(strs, term_width)
     outstrs
 end
 
-function writeChild(buf::IOBuffer, t::Tree, idx::Int, cursor, term_width::Int; level::Int = 0, isedit = true)
+function writeChild(buf::IOBuffer, t::Tree, idx::Int, cursor, term_width::Int; level::Int = 0, isedit = false)
     tmpbuf = IOBuffer()
 
     child = children(t)[idx]
@@ -161,7 +161,8 @@ function writeChild(buf::IOBuffer, t::Tree, idx::Int, cursor, term_width::Int; l
     else
         # if there's a specially designed show method we fall back to that
         if showmethod(typeof(child)) ≠ showmethod(Any)
-            cur ? print(buf, "[ ] ") : print(buf, "    ")
+            symbol = isedit ? "x" : " "
+            cur ? print(buf, "[$symbol] ") : print(buf, " $symbol  ")
             b = IOBuffer()
             print(b, Text(io -> show(IOContext(io, :limit => true), MIME"text/plain"(), child)))
             s = join(limitLineLength(split(String(take!(b)), '\n'), term_width-(2*level + 10)), "\n"*indent(level))
