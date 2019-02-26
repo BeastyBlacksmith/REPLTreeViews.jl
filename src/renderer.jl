@@ -165,8 +165,10 @@ function writeChild(buf::IOBuffer, t::Tree, idx::Int, cursor, term_width::Int; l
             if isedit
                 if haskey( changed_values, child )
                     symbol = changed_values[child]
-                else
+                elseif cur
                     symbol = val
+                else
+                    symbol = "edit"
                 end # if
             end
             cur ? print(buf, "[$symbol] ") : print(buf, " $symbol  ")
@@ -292,8 +294,11 @@ function request(term::REPL.Terminals.TTYTerminal, m::Tree; isedit = false)
                 keypress(m, c) && break
             end # if
 
-            # val = string(cursor, " ", m.cursor)
-            printMenu(term.out_stream, m, cursor, isedit = isedit, val = val)
+            if editing
+                printMenu(term.out_stream, m, cursor, isedit = isedit, val = val)
+            else
+                printMenu(term.out_stream, m, cursor, isedit = isedit)
+            end # if
         end # while
     finally
         # always disable raw mode even even if there is an
@@ -301,7 +306,10 @@ function request(term::REPL.Terminals.TTYTerminal, m::Tree; isedit = false)
         if raw_mode_enabled
             print(term.out_stream, "\x1b[?25h") # unhide cursor
             disableRawMode(term)
-        end
+        end # if
+        for key in changed_values |> keys
+            delete!( changed_values, key )
+        end # for
     end
     println(term.out_stream)
 
