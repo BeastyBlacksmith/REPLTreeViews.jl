@@ -1,6 +1,6 @@
 
 macro iedit(x)
-    :(ishow($(esc(x))))
+    :(iedit($(esc(x))))
 end
 
 function iedit(x)

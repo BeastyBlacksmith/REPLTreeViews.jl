@@ -252,10 +252,9 @@ function request(term::REPL.Terminals.TTYTerminal, m::Tree; isedit = false)
             currentItem, _ = findItem(m, cursor)
 
             if editing
-                # val = readline(term.in_stream)
-                # val = readuntil(term.in_stream, 0x0a) |> String
-                val = strip(String(readavailable(term.in_stream)),'\n')
-                editing = false
+                if c == 13; editing = false; continue; end
+                if val == "_"; val = ""; end
+                val *= Char(c)
             elseif c == Int(ARROW_UP)
                 if cursor > 0
                     cursor -= 1
@@ -266,8 +265,7 @@ function request(term::REPL.Terminals.TTYTerminal, m::Tree; isedit = false)
                 # will break if pick returns true
                 if currentItem isa Tree
                     toggle(currentItem)
-                end # if
-                if isedit #&& val == "edit"
+                elseif isedit
                     val = "_"
                     editing = true
                 end # if
@@ -282,6 +280,7 @@ function request(term::REPL.Terminals.TTYTerminal, m::Tree; isedit = false)
                 keypress(m, c) && break
             end # if
 
+            # val = string(cursor, " ", m.cursor)
             printMenu(term.out_stream, m, cursor, isedit = isedit, val = val)
         end # while
     finally
