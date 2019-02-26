@@ -163,7 +163,11 @@ function writeChild(buf::IOBuffer, t::Tree, idx::Int, cursor, term_width::Int; l
         if showmethod(typeof(child)) ≠ showmethod(Any)
             symbol = " "
             if isedit
-                symbol = val
+                if haskey( changed_values, child )
+                    symbol = changed_values[child]
+                else
+                    symbol = val
+                end # if
             end
             cur ? print(buf, "[$symbol] ") : print(buf, " $symbol  ")
             b = IOBuffer()
@@ -253,7 +257,11 @@ function request(term::REPL.Terminals.TTYTerminal, m::Tree; isedit = false)
 
             if editing
                 # stop editing via <enter>
-                if c == 13; editing = false; continue; end
+                if c == 13
+                    editing = false
+                    global changed_values[currentItem] = val
+                    continue
+                end
                 # TODO: this should display truncated string immediately
                 # delete one char via <backspace>
                 if c == 127; val = val[1:end-1]; continue; end
