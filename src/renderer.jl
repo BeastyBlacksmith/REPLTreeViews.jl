@@ -252,7 +252,11 @@ function request(term::REPL.Terminals.TTYTerminal, m::Tree; isedit = false)
             currentItem, _ = findItem(m, cursor)
 
             if editing
+                # stop editing via <enter>
                 if c == 13; editing = false; continue; end
+                # TODO: this should display truncated string immediately
+                # delete one char via <backspace>
+                if c == 127; val = val[1:end-1]; continue; end
                 if val == "_"; val = ""; end
                 val *= Char(c)
             elseif c == Int(ARROW_UP)
